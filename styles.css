@@ -1,0 +1,27 @@
+#time-display {
+  font-size: 1.2em;
+  margin-top: 10px;
+  cursor: pointer;
+}
+
+.slider-container {
+  display: flex;
+  justify-content: space-around;
+  margin-top: 90px;
+}
+
+.slider-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.slider {
+  writing-mode: bt-lr; /* Vertical slider */
+  transform: rotate(270deg); /* Rotate to make it vertical */
+  margin-bottom: 10px;
+}
+
+.slider-label {
+  margin-top: 55px;
+}

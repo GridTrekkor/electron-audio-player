@@ -1,0 +1,6 @@
+.vscode/
+node_modules/
+*.js
+!preload.js
+!.prettierrc.js
+!eslint.config.js

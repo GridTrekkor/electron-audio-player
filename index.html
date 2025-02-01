@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Electron App</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <button id="select-file">Select a FLAC File</button>
+    <button id="play-file">Play/Pause File</button>
+    <button id="stop-playback">Stop Playback</button>
+    <input type="range" id="volume-control" min="0" max="1" step="0.01" value="0.25" />
+    <div id="time-display">Elapsed Time: 0:00</div>
+    <div>
+      <input type="checkbox" id="group-sliders" />
+      <label for="group-sliders">Group Sliders</label>
+    </div>
+    <button id="toggle-equalizer">Toggle Equalizer</button>
+    <div class="slider-container" id="slider-container"></div>
+    <script src="renderer.js"></script>
+  </body>
+</html>
