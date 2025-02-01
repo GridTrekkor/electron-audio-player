@@ -7,7 +7,6 @@
     "lint": "eslint .",
     "lint:fix": "eslint . --fix"
   },
-  "type": "module",
   "dependencies": {
     "music-metadata": "^10.8.2",
     "node-web-audio-api": "^1.0.1"

@@ -75,6 +75,11 @@ document.getElementById('select-file')?.addEventListener('click', async () => {
   if (filePath) {
     try {
       console.log('File path selected:', filePath);
+
+      // Read and log metadata
+      const metadata = await window.electron.readMetadata(filePath);
+      console.log('File metadata:', metadata);
+
       const startTime = performance.now();
 
       const uint8Array = await window.electron.readFile(filePath);

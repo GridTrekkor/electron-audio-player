@@ -8,11 +8,11 @@ export default [
     languageOptions: {
       parser: tsParser,
       ecmaVersion: 'latest',
-      sourceType: 'module',
+      sourceType: 'module'
     },
     plugins: {
       '@typescript-eslint': tsPlugin,
-      prettier: prettierPlugin,
+      prettier: prettierPlugin
     },
     rules: {
       '@typescript-eslint/naming-convention': 'off',
@@ -22,10 +22,10 @@ export default [
       'no-unused-vars': 'off',
       '@typescript-eslint/no-unused-vars': 'warn',
       'sort-imports': 'error',
-      'prefer-const': 'off',
-    },
+      'prefer-const': 'off'
+    }
   },
   {
-    ignores: ['node_modules/'],
-  },
+    ignores: ['node_modules/']
+  }
 ];
