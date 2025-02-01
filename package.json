@@ -1,5 +1,5 @@
 {
-  "name": "audioplayer",
+  "name": "electron-audio-player",
   "main": "index.js",
   "scripts": {
     "start": "electron .",
@@ -8,20 +8,17 @@
     "lint:fix": "eslint . --fix"
   },
   "type": "module",
-  "author": "",
-  "description": "",
+  "dependencies": {
+    "music-metadata": "^10.8.2",
+    "node-web-audio-api": "^1.0.1"
+  },
   "devDependencies": {
-    "@types/howler": "^2.2.12",
-    "@types/node": "^22.12.0",
+    "@types/node": "^22.13.0",
     "@typescript-eslint/eslint-plugin": "^8.22.0",
     "@typescript-eslint/parser": "^8.22.0",
-    "electron": "^34.0.1",
+    "electron": "^34.0.2",
     "eslint": "^9.19.0",
     "eslint-plugin-prettier": "^5.2.3",
     "typescript": "^5.7.3"
-  },
-  "dependencies": {
-    "music-metadata": "^10.7.1",
-    "node-web-audio-api": "^1.0.1"
   }
 }
