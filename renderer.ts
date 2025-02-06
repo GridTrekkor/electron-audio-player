@@ -1,6 +1,5 @@
 let audioContext: AudioContext;
 let source: AudioBufferSourceNode | null = null;
-let audioBuffer: AudioBuffer;
 let gainNode: GainNode;
 let startTime: number;
 let elapsedTime = 0;
@@ -34,7 +33,7 @@ const updateTimeDisplay = () => {
   if (audioContext && startTime !== undefined && source && !isPaused) {
     elapsedTime = audioContext.currentTime - startTime;
   }
-  const totalDuration = audioBuffer ? audioBuffer.duration : 0;
+  const totalDuration = source?.buffer?.duration || 0;
   const timeToShow = showRemainingTime ? totalDuration - elapsedTime : elapsedTime;
   const minutes = Math.floor(timeToShow / 60);
   const seconds = Math.floor(timeToShow % 60);
@@ -49,24 +48,22 @@ const updateTimeDisplay = () => {
 };
 
 const playAudio = async () => {
-  if (audioBuffer) {
-    if (source) {
-      source.stop();
-    }
-    source = audioContext.createBufferSource();
-    source.buffer = audioBuffer;
-    if (equalizerEnabled) {
-      source.connect(filters[0]).connect(gainNode).connect(audioContext.destination);
-    } else {
-      source.connect(gainNode).connect(audioContext.destination);
-    }
+  if (source) {
+    source.stop();
+    source.disconnect();
+  }
+  source = audioContext.createBufferSource();
+  source.buffer = await window.electron.decodeAudioDataStream();
+  if (equalizerEnabled) {
+    source.connect(filters[0]).connect(gainNode).connect(audioContext.destination);
+  } else {
+    if (!source) throw new Error('Audio source is not defined');
+    source.connect(gainNode).connect(audioContext.destination);
     source.start(0, pauseTime);
     startTime = audioContext.currentTime - pauseTime;
     isPaused = false;
     updateTimeDisplay();
     console.log('Playback started');
-  } else {
-    console.error('No audio buffer available to play');
   }
 };
 
@@ -80,53 +77,23 @@ document.getElementById('select-file')?.addEventListener('click', async () => {
       const metadata = await window.electron.readMetadata(filePath);
       console.log('File metadata:', metadata);
 
-      const startTime = performance.now();
+      // Read the file in chunks and send to preload script
+      const fileData = await window.electron.readFile(filePath);
+      const chunkSize = 1024 * 16; // 16KB chunks
+      for (let i = 0; i < fileData.length; i += chunkSize) {
+        const chunk = fileData.slice(i, i + chunkSize);
+        window.electron.ipcRenderer.send('audio-chunk', chunk);
+      }
+      window.electron.ipcRenderer.send('audio-end');
 
-      const uint8Array = await window.electron.readFile(filePath);
-      console.log('Uint8Array length:', uint8Array.length);
-      console.log('Uint8Array:', uint8Array);
-
-      const readTime = performance.now();
-      console.log(`File read time: ${(readTime - startTime).toFixed(2)} ms`);
-
-      const arrayBuffer = uint8Array.buffer;
-      console.log('Array buffer length:', arrayBuffer.byteLength);
-      console.log('Array buffer:', arrayBuffer);
-
-      const bufferData = await window.electron.decodeAudioData(uint8Array);
-      console.log('Decoded buffer data:', bufferData);
-
-      const decodeTime = performance.now();
-      console.log(`Audio decode time: ${(decodeTime - readTime).toFixed(2)} ms`);
-
-      // Reconstruct AudioBuffer
       audioContext = new AudioContext();
       gainNode = audioContext.createGain();
       gainNode.gain.value = 0.25; // Set initial volume to 25%
-      audioBuffer = audioContext.createBuffer(bufferData.numberOfChannels, bufferData.length, bufferData.sampleRate);
-
-      for (let i = 0; i < bufferData.numberOfChannels; i++) {
-        audioBuffer.getChannelData(i).set(bufferData.data[i]);
-      }
-
-      const bufferTime = performance.now();
-      console.log(`Buffer reconstruction time: ${(bufferTime - decodeTime).toFixed(2)} ms`);
-
-      console.log('Reconstructed AudioBuffer:', audioBuffer);
 
       // Create and connect filters
       createFilters();
 
-      // Check if buffer has properties of AudioBuffer
-      if (audioBuffer && typeof audioBuffer.duration === 'number' && typeof audioBuffer.sampleRate === 'number') {
-        console.log('Buffer duration:', audioBuffer.duration);
-        playAudio(); // Start playback automatically
-      } else {
-        throw new Error('Decoded buffer does not have expected AudioBuffer properties');
-      }
-
-      const endTime = performance.now();
-      console.log(`Total time: ${(endTime - startTime).toFixed(2)} ms`);
+      playAudio(); // Start playback automatically
     } catch (error) {
       console.error('Error playing audio file:', error);
     }
@@ -134,19 +101,14 @@ document.getElementById('select-file')?.addEventListener('click', async () => {
 });
 
 document.getElementById('play-file')?.addEventListener('click', () => {
-  if (isPaused) {
-    playAudio();
-  } else {
-    if (source) {
-      source.stop();
-      pauseTime = audioContext.currentTime - startTime;
-      isPaused = true;
-      cancelAnimationFrame(animationFrameId);
-      console.log('Playback paused');
-    } else {
-      playAudio();
-    }
-  }
+  if (!isPaused || !source) return;
+  source.disconnect();
+  source.connect(gainNode).connect(audioContext.destination);
+  source.start(0, pauseTime);
+  startTime = audioContext.currentTime - pauseTime;
+  isPaused = false;
+  updateTimeDisplay();
+  console.log('Playback started');
 });
 
 document.getElementById('stop-playback')?.addEventListener('click', () => {

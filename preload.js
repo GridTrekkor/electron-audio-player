@@ -1,37 +1,4 @@
 "use strict";
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
-        ownKeys = Object.getOwnPropertyNames || function (o) {
-            var ar = [];
-            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
-            return ar;
-        };
-        return ownKeys(o);
-    };
-    return function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-        __setModuleDefault(result, mod);
-        return result;
-    };
-})();
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
     return new (P || (P = Promise))(function (resolve, reject) {
@@ -41,28 +8,64 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-const fs = __importStar(require("fs/promises"));
-const electron_1 = require("electron");
-const music_metadata_1 = __importDefault(require("music-metadata"));
-electron_1.contextBridge.exposeInMainWorld('electron', {
-    openFileDialog: () => electron_1.ipcRenderer.invoke('open-file-dialog'),
+const fsPromises = require('fs').promises;
+const { contextBridge, ipcRenderer } = require('electron');
+const mmCjs = require('music-metadata');
+contextBridge.exposeInMainWorld('electron', {
+    ipcRenderer: {
+        send: (channel, ...args) => ipcRenderer.send(channel, ...args),
+        on: (channel, listener) => ipcRenderer.on(channel, listener)
+    },
+    openFileDialog: () => ipcRenderer.invoke('open-file-dialog'),
     readFile: (filePath) => __awaiter(void 0, void 0, void 0, function* () {
-        const data = yield fs.readFile(filePath);
+        const data = yield fsPromises.readFile(filePath);
         console.log('Read file data:', data);
         return new Uint8Array(data);
     }),
-    decodeAudioData: (uint8Array) => {
-        const arrayBuffer = uint8Array.buffer;
-        console.log('ArrayBuffer to decode:', arrayBuffer);
-        return electron_1.ipcRenderer.invoke('decode-audio-data', arrayBuffer);
+    decodeAudioDataStream: () => {
+        return new Promise((resolve, reject) => {
+            const audioContext = new AudioContext();
+            const stream = new ReadableStream({
+                start(controller) {
+                    ipcRenderer.on('audio-chunk', (_event, chunk) => {
+                        console.log('Received audio chunk:', chunk);
+                        controller.enqueue(chunk);
+                    });
+                    ipcRenderer.on('audio-end', () => {
+                        console.log('Audio stream ended');
+                        controller.close();
+                    });
+                }
+            });
+            const reader = stream.getReader();
+            const chunks = [];
+            reader.read().then(function processChunk({ done, value }) {
+                console.log('Reader read:', { done, value });
+                if (done) {
+                    const totalLength = chunks.reduce((acc, chunk) => acc + chunk.length, 0);
+                    const combined = new Uint8Array(totalLength);
+                    let offset = 0;
+                    for (const chunk of chunks) {
+                        combined.set(chunk, offset);
+                        offset += chunk.length;
+                    }
+                    audioContext.decodeAudioData(combined.buffer, (audioBuffer) => {
+                        const source = audioContext.createBufferSource();
+                        source.buffer = audioBuffer;
+                        source.connect(audioContext.destination);
+                        source.start();
+                        resolve();
+                    }, reject);
+                    return;
+                }
+                chunks.push(value);
+                reader.read().then(processChunk);
+            });
+        });
     },
     readMetadata: (filePath) => __awaiter(void 0, void 0, void 0, function* () {
         // Load music-metadata ESM module
-        const mmEsm = yield music_metadata_1.default.loadMusicMetadata();
+        const mmEsm = yield mmCjs.loadMusicMetadata();
         const metadata = yield mmEsm.parseFile(filePath);
         return metadata;
     })
