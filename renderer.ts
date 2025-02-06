@@ -1,4 +1,3 @@
-let audioContext: AudioContext;
 let source: AudioBufferSourceNode | null = null;
 let audioBuffer: AudioBuffer;
 let gainNode: GainNode;
@@ -10,24 +9,29 @@ let isPaused = false;
 let pauseTime = 0;
 let equalizerEnabled = true;
 const filters: BiquadFilterNode[] = [];
+const audioContext = new AudioContext();
 
 const frequencies = [60, 170, 310, 600, 1000, 3000, 6000, 12000];
 
 const createFilters = () => {
-  frequencies.forEach((frequency) => {
-    const filter = audioContext.createBiquadFilter();
-    filter.type = 'peaking';
-    filter.frequency.value = frequency;
-    filter.Q.value = 1;
-    filter.gain.value = 0;
-    filters.push(filter);
-  });
+  try {
+    frequencies.forEach((frequency) => {
+      const filter = audioContext.createBiquadFilter();
+      filter.type = 'peaking';
+      filter.frequency.value = frequency;
+      filter.Q.value = 1;
+      filter.gain.value = 0;
+      filters.push(filter);
+    });
 
-  // Connect filters in series
-  filters.reduce((prev, curr) => {
-    prev.connect(curr);
-    return curr;
-  });
+    // Connect filters in series
+    filters.reduce((prev, curr) => {
+      prev.connect(curr);
+      return curr;
+    });
+  } catch (error) {
+    throw new Error(`Error creating filters: ${error}`);
+  }
 };
 
 const updateTimeDisplay = () => {
@@ -100,7 +104,6 @@ document.getElementById('select-file')?.addEventListener('click', async () => {
       console.log(`Audio decode time: ${(decodeTime - readTime).toFixed(2)} ms`);
 
       // Reconstruct AudioBuffer
-      audioContext = new AudioContext();
       gainNode = audioContext.createGain();
       gainNode.gain.value = 0.25; // Set initial volume to 25%
       audioBuffer = audioContext.createBuffer(bufferData.numberOfChannels, bufferData.length, bufferData.sampleRate);
@@ -166,7 +169,7 @@ document.getElementById('volume-control')?.addEventListener('input', (event) => 
   const volume = (event.target as HTMLInputElement).value;
   if (gainNode) {
     gainNode.gain.value = parseFloat(volume);
-    console.log('Volume set to:', volume);
+    // console.log('Volume set to:', volume);
   }
 });
 

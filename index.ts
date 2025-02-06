@@ -4,16 +4,22 @@ const { AudioContext: NodeAudioContext, AudioBuffer: NodeAudioBuffer } = require
 
 const createWindow = () => {
   const preloadPath = path.join(__dirname, 'preload.js');
-  console.log('Preload Path:', preloadPath);
+  // console.log('Preload Path:', preloadPath);
 
   if (!require('fs').existsSync(preloadPath)) {
     console.error('Preload script not found:', preloadPath);
     return;
   }
 
+  const { screen } = require('electron');
+  const primaryDisplay = screen.getPrimaryDisplay();
+  const { width, height } = primaryDisplay.workAreaSize;
+
   const win = new BrowserWindow({
     width: 800,
     height: 600,
+    x: width - 800,
+    y: height - 600,
     webPreferences: {
       preload: preloadPath,
       contextIsolation: true,
@@ -22,6 +28,7 @@ const createWindow = () => {
   });
 
   win.loadFile('index.html');
+  win.webContents.openDevTools();
 };
 
 app.whenReady().then(createWindow);
@@ -71,7 +78,6 @@ ipcMain.handle('decode-audio-data', async (_event: any, arrayBuffer: ArrayBuffer
       throw new Error('Decoded buffer does not have expected AudioBuffer properties');
     }
   } catch (error) {
-    console.error('Error decoding audio data:', error);
-    throw error;
+    throw new Error(`Error decoding audio data: ${error}`);
   }
 });
